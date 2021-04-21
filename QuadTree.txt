@@ -1,0 +1,356 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#define MinImageWidth   1
+#define MaxImageWidth   64
+#define Black   0
+#define White   1
+#define Mixed   2
+
+
+typedef struct node
+{
+    int PosX;
+    int PosY;
+    int Width;
+    int Value;
+    struct node* Child[4];
+    int** PixelArray;
+} Node;
+
+
+void ReadFile ( char *file_name, Node *node);
+void SetNode(Node* node,int PosX, int PosY, int Width, int Value, int** PixelArray);
+int PowerOfTwo (int x);
+void BuildQuadTree(Node *node);
+int CheckColour (Node *node, int Top, int Bottom, int Left, int Right);
+int** CreateTempArray (Node *node, int Top, int Bottom, int Left, int Right, int mid);
+
+
+int main ( int argc, char *argv [] )
+{
+    Node RootNode;
+    
+    if ( argc != 2)
+    {
+        puts ("Error with input file. Program exit");
+        exit(-1);
+    }
+    
+    ReadFile( argv[1], &RootNode);
+    BuildQuadTree(&RootNode);
+}
+
+
+
+void ReadFile ( char *file_name, Node* node ){
+    
+    int CountedNumberofBlack=1, Counter=0, i, j, a, PixelWidth, XValue, YValue, b, val, PowerofTwo, NumberofBlack;
+    long StringSize, ReadSize;
+    int** OriginalArray;
+    char *buffer = NULL;
+    FILE *fp;
+    
+    fp = fopen(file_name,"r");
+    
+    if (fp == NULL){
+        puts("Error reading file. Program exit");
+        exit (-1);
+    }
+    
+    if (fp)
+    {
+        fseek(fp,0,SEEK_END);
+        StringSize = ftell(fp);
+        rewind(fp);
+        buffer = (char*) malloc (sizeof(char) * (StringSize + 1) );
+        ReadSize = fread(buffer,sizeof(char),StringSize,fp);
+        buffer[StringSize] = '\0';
+        if(buffer[StringSize-1] == '\n')
+        {
+            buffer[StringSize-1] = '\0';
+        }
+        if (StringSize != ReadSize) {
+            free(buffer);
+            buffer =NULL;
+            puts("Error storing file. Program exit");
+            exit(-1);
+        }
+    }
+    
+    char *str=buffer, *p=str;
+    
+    while (*p) {
+        if (*p== '\n') {
+            CountedNumberofBlack++;
+            p++;
+        }
+        else if (isdigit(*p)) {
+            val = strtol(p, &p, 10);
+            if (Counter==0) {
+                PixelWidth = val;
+                
+                PowerofTwo=PowerOfTwo(PixelWidth);
+                if (PowerofTwo != 1){
+                    puts("The image width is not a power of 2. Program exit");
+                    exit (-1);
+                }
+                if (PixelWidth<MinImageWidth) {
+                    puts("The image is too small: it is less than the minimum image width. Program exit");
+                    exit (-1);
+                }
+                if (PixelWidth>MaxImageWidth) {
+                    puts("The image is too large: it is more than maximum image width. Program exit");
+                    exit (-1);
+                }
+                
+                Counter++;
+                OriginalArray = (int**) malloc(PixelWidth*sizeof(int*));
+                for(i = 0; i < PixelWidth; i++)
+                {
+                    OriginalArray[i] = (int*) malloc(PixelWidth*sizeof(int));
+                    for ( j = 0; j < PixelWidth; j++ )
+                    {
+                        OriginalArray[i][j] = White;
+                    }
+                }
+            }
+            
+            else if (Counter==1) {
+                NumberofBlack=val;
+                
+                if (NumberofBlack>(PixelWidth*PixelWidth)) {
+                    puts("There are more black pixels than the size of the image. Program exit");
+                    exit (-1);
+                }
+                if (NumberofBlack==(PixelWidth*PixelWidth)) {
+                    puts("The image is only black pixels");
+                    exit (-1);
+                }
+                if (NumberofBlack==0) {
+                    puts("The image is only white pixels");
+                    exit (-1);
+                }
+                if (NumberofBlack<0) {
+                    puts("There are less than 0 black pixels. Program exit");
+                    exit (-1);
+                }
+                
+                Counter++;
+            }
+            
+            else if (Counter%2 == 0) {
+                XValue=val;
+                Counter++;
+            }
+            
+            else {
+                YValue=val;
+                if (XValue<0 || XValue>=PixelWidth || YValue<0 || YValue>=PixelWidth) {
+                    printf("Coordinate (%i,%i) is outside of the bounds of the image width. Program exit\n", XValue, YValue);
+                    exit (-1);
+                }
+                OriginalArray[XValue][YValue]=Black;
+                Counter++;
+            }
+        }
+        else {
+            p++;
+        }
+    }
+    CountedNumberofBlack=CountedNumberofBlack-2;
+    
+    if (NumberofBlack!= CountedNumberofBlack) {
+        puts("The given number of black pixels is not the same as the counted number of black pixels. Program exit ");
+        exit (0);
+    }
+    
+    b=PixelWidth-1;
+    
+    SetNode(node, 0, b, PixelWidth, 2, OriginalArray);
+    free(buffer);
+    for ( a=0; a < PixelWidth; a++)
+    {
+        free(OriginalArray[a]);
+    }
+    free(OriginalArray);
+    fclose(fp);
+    return;
+}
+
+
+int PowerOfTwo (int x)
+{
+    while (((x % 2) == 0) && x > 1) /* While x is even and > 1 */
+        x /= 2;
+    return x;
+}
+
+void SetNode(Node* newNode, int PosX, int PosY, int Width, int Value, int** Pixels)
+{
+    int i,j,k;
+    
+    newNode->PosX=PosX;
+    newNode->PosY=PosY;
+    newNode->Width= Width;
+    newNode->Value= Value;
+    
+    for (k = 0; k < 4; k++)
+        newNode->Child[k] = (Node*) malloc(sizeof(Node));
+    
+    
+    newNode->PixelArray = (int**) malloc(Width*sizeof(int*));
+    for(i = 0; i < Width; i++)
+    {
+        newNode->PixelArray[i] = (int*) malloc(Width*sizeof(int));
+        for ( j = 0; j < Width; j++ )
+        {
+            newNode->PixelArray[i][j] = Pixels[i][j];
+            
+        }
+    }
+}
+
+
+void BuildQuadTree(Node *node)
+{
+    int x, Value, mid, uppermid, edge, a, PreviousPosX,PreviousPosY, PosX, PosY;
+    int** TempArray;
+            
+    PreviousPosX=node->PosX;
+    PreviousPosY=node->PosY;
+    uppermid=((node->Width)/2);
+    mid=uppermid-1;
+    edge=node->Width-1;
+    
+    for (x=0; x< 4; x++){
+        switch(x){
+                
+            case 0: //NW
+                Value= CheckColour(node, 0, mid, 0, mid);
+                TempArray = CreateTempArray(node, 0, mid, 0, mid, uppermid);
+                PosX=PreviousPosX;
+                PosY=PreviousPosY-uppermid;
+                SetNode(node->Child[0], PosX, PosY, uppermid, Value, TempArray);
+                for ( a=0; a < uppermid; a++)
+                {
+                    free(TempArray[a]);
+                }
+                free(TempArray);
+                if (Value==Black)
+                    printf("Position (%i,%i), Width %i, is all black\n", PosX,PosY, uppermid);
+                if (Value==Mixed)
+                    BuildQuadTree(node->Child[0]);
+                break;
+                
+            case 1: // NE
+                Value= CheckColour(node, 0, mid, uppermid, edge);
+                TempArray = CreateTempArray(node, 0, mid, uppermid, edge, uppermid);
+                PosX=PreviousPosX+uppermid;
+                PosY=PreviousPosY-uppermid;
+                SetNode(node->Child[1], PosX , PosY , uppermid, Value, TempArray);
+                for ( a=0; a < uppermid; a++)
+                {
+                    free(TempArray[a]);
+                }
+                free(TempArray);
+                if (Value==Black)
+                    printf("Position (%i,%i), Width %i, is all black\n", PosX,PosY, uppermid);
+                if (Value==Mixed)
+                    BuildQuadTree(node->Child[1]);
+                break;
+                
+            case 2: //SW
+                Value= CheckColour(node, uppermid, edge, 0, mid);
+                TempArray = CreateTempArray(node, uppermid, edge, 0, mid, uppermid);
+                PosX=PreviousPosX;
+                PosY=PreviousPosY;
+                SetNode(node->Child[2], PosX, PosY, uppermid, Value, TempArray);
+                for ( a=0; a < uppermid; a++)
+                {
+                    free(TempArray[a]);
+                }
+                free(TempArray);
+                if (Value==Black)
+                    printf("Position (%i,%i), Width %i, is all black\n", PosX,PosY, uppermid);
+                if (Value==Mixed)
+                    BuildQuadTree(node->Child[2]);
+                break;
+                
+            case 3: //SE
+                Value= CheckColour(node, uppermid, edge, uppermid, edge);
+                TempArray = CreateTempArray(node, uppermid, edge, uppermid, edge, uppermid);
+                PosX=PreviousPosX+uppermid;
+                PosY=PreviousPosY;
+                SetNode(node->Child[3], PosX, PosY, uppermid, Value, TempArray);
+                for ( a=0; a < uppermid; a++)
+                {
+                    free(TempArray[a]);
+                }
+                free(TempArray);
+                if (Value==Black)
+                    printf("Position (%i,%i), Width %i, is all black\n", PosX,PosY, uppermid);
+                if (Value==Mixed)
+                    BuildQuadTree(node->Child[3]);
+                break;
+        }
+    }
+}
+
+
+int CheckColour (Node *node, int Top, int Bottom, int Left, int Right)
+{
+    int i,j,BlackCount=0, WhiteCount=0;
+    
+    for ( j = Top; j <= Bottom; j++ )
+    {
+        for ( i = Left; i <= Right; i++ )
+        {
+            if (node->PixelArray[i][j]==White){
+                WhiteCount++;
+            }
+            else if (node->PixelArray[i][j]==Black){
+                BlackCount ++;
+            }
+        }
+    }
+    
+    if (WhiteCount==0){
+        return Black;
+    }
+    if (BlackCount==0){
+        return White;
+    }
+    return Mixed;
+}
+
+
+int** CreateTempArray (Node *node, int Top, int Bottom, int Left, int Right, int mid)
+{
+    int i=0,j=0,x,y,z;
+    
+    
+    int** TempArray = (int**) malloc(mid*sizeof(int*));
+    for(z = 0; z < mid; z++)
+    {
+        TempArray[z] = (int*) malloc(mid*sizeof(int));
+    }
+    
+    for ( y=Top ; y <= Bottom; y++ )
+    {
+        for ( x=Left ; x <= Right; x++ )
+        {
+            
+            TempArray[i][j] = node->PixelArray[x][y];
+            
+            i=i+1;
+            if (i==mid)
+            {
+                j=j+1;
+                i=0;
+            }
+        }
+    }
+    return TempArray;
+}
