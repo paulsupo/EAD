@@ -1,0 +1,3 @@
+﻿  K means.cpp
+C:\Users\Usuario\Desktop\EAD\K means\K means\K means.cpp(55,15): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+  K means.vcxproj -> C:\Users\Usuario\Desktop\EAD\K means\K means\Debug\K means.exe
