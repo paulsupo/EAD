@@ -9,9 +9,6 @@
 
 using namespace std;
 
-
-
-
 int ran() {
     random_device dev;
     mt19937 rng(dev());
@@ -22,19 +19,19 @@ int ran() {
 struct Point {
     double x, y;     /// coordenadas
     int cluster;     /// cluster futuro
-    double minDist;  // distancia minima
+    double dist_minima;  // distancia minima
 
     Point() :
         x(0.0),
         y(0.0),
         cluster(-1),
-        minDist(DBL_MAX) {}
+        dist_minima(DBL_MAX) {}
 
     Point(double x, double y) :
         x(x),
         y(y),
         cluster(-1),
-        minDist(DBL_MAX) {}
+        dist_minima(DBL_MAX) {}
     double distance(Point p) {      ///distancia
         return (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
     }
@@ -63,22 +60,22 @@ bool sortbysec(const pair <int, double>& a, const pair <int, double>& b) {
 }
 
 
-void kMeansClustering(vector<Point>* points, int vueltas, int k) {           ///vector, numero de iteraciones,  clusters
-    vector<Point> centroids;
+void k_means(vector<Point>* puntos, int vueltas, int k) {           ///vector, numero de iteraciones,  clusters
+    vector<Point> centroides;
     srand(time(0));  // need to set the random seed
     for (int i = 0; i < k; ++i) {
         int temp = -30 + rand() % 40;
         int temp2 = -30 + rand() % 40;
         cout << "Centroide: " << temp << " , " << temp2 << endl;
-        centroids.push_back(Point(temp,temp2));
+        centroides.push_back(Point(temp,temp2));
     }
 
     /*
     vector< pair <int, double> > cl_dis;
-    for (vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
+    for (vector<Point>::iterator it = puntos->begin(); it != puntos->end(); ++it) {
         double distancia= DBL_MAX;
         int i = 0;
-        for (vector<Point>::iterator c = begin(centroids); c != end(centroids); ++c) {
+        for (vector<Point>::iterator c = begin(centroides); c != end(centroides); ++c) {
             distancia = distance2((*it), (*c));
             cl_dis.push_back(make_pair(i, distancia));
             cout << "Para el cluster " << i << " la distancia es " << distancia << endl;
@@ -87,9 +84,9 @@ void kMeansClustering(vector<Point>* points, int vueltas, int k) {           ///
         sort(cl_dis.begin(), cl_dis.end(), sortbysec);
 
         Point p = *it;
-        p.minDist = cl_dis[0].second;
+        p.dist_minima = cl_dis[0].second;
         p.cluster = cl_dis[0].first;
-        cout << "Para el punto "<<p.x<<","<<p.y<<" la minima distancia es " << p.minDist << " y su cluster es " << p.cluster << endl << endl;
+        cout << "Para el punto "<<p.x<<","<<p.y<<" la minima distancia es " << p.dist_minima << " y su cluster es " << p.cluster << endl << endl;
         cl_dis.clear();
     }
     
@@ -99,16 +96,16 @@ void kMeansClustering(vector<Point>* points, int vueltas, int k) {           ///
 
     for (int i = 0; i < vueltas; i++) {
 
-        for (vector<Point>::iterator c = begin(centroids); c != end(centroids); ++c) {              // quick hack to get cluster index
-            int clusterId = c - begin(centroids);
+        for (vector<Point>::iterator c = begin(centroides); c != end(centroides); ++c) {              // quick hack to get cluster index
+            int clust_id = c - begin(centroides);
 
-            for (vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
+            for (vector<Point>::iterator it = puntos->begin(); it != puntos->end(); ++it) {
 
                 Point p = *it;
                 double dist = c->distance2(p, *c);
-                if (dist < p.minDist) {
-                    p.minDist = dist;
-                    p.cluster = clusterId;
+                if (dist < p.dist_minima) {
+                    p.dist_minima = dist;
+                    p.cluster = clust_id;
                     //cout << "Para el punto " << p.x << "," << p.y << " el clauster es " << p.cluster << endl;
 
                 }
@@ -132,20 +129,20 @@ void kMeansClustering(vector<Point>* points, int vueltas, int k) {           ///
 
 
         // Itera sobre puntos para agregar datos a los centroides
-        for (vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
-            int clusterId = it->cluster;
-            nPoints[clusterId] += 1;
-            sumX[clusterId] += it->x;
-            sumY[clusterId] += it->y;
+        for (vector<Point>::iterator it = puntos->begin(); it != puntos->end(); ++it) {
+            int clust_id = it->cluster;
+            nPoints[clust_id] += 1;
+            sumX[clust_id] += it->x;
+            sumY[clust_id] += it->y;
 
-            it->minDist = DBL_MAX;  // reseteamos la distancia
+            it->dist_minima = DBL_MAX;  // reseteamos la distancia
         }
 
         // Calculamos nuevos centroides
-        for (vector<Point>::iterator c = begin(centroids); c != end(centroids); ++c) {
-            int clusterId = c - begin(centroids);
-            c->x = sumX[clusterId] / nPoints[clusterId];
-            c->y = sumY[clusterId] / nPoints[clusterId];
+        for (vector<Point>::iterator c = begin(centroides); c != end(centroides); ++c) {
+            int clust_id = c - begin(centroides);
+            c->x = sumX[clust_id] / nPoints[clust_id];
+            c->y = sumY[clust_id] / nPoints[clust_id];
         }
     }
     
@@ -153,7 +150,7 @@ void kMeansClustering(vector<Point>* points, int vueltas, int k) {           ///
     myfile.open("output.csv");
     myfile << "x,y,c" << endl;
 
-    for (vector<Point>::iterator it = points->begin();it != points->end(); ++it) {
+    for (vector<Point>::iterator it = puntos->begin();it != puntos->end(); ++it) {
 
         myfile << it->x << "," << it->y << "," << it->cluster << endl;
     }
@@ -171,7 +168,7 @@ int main() {
     cout << "Cuantas iteraciones desea? ";
     cin >> vuelta;
 
-    vector<Point> points;
+    vector<Point> puntos;
     string line;
     ifstream file("temp.csv");
 
@@ -184,12 +181,12 @@ int main() {
         getline(lineStream, bit, '\n');
         y = stof(bit);
 
-        points.push_back(Point(x, y));
+        puntos.push_back(Point(x, y));
     }
 
 
     file.close();
-    kMeansClustering(&points, vuelta, num);
+    k_means(&puntos, vuelta, num);
     /*
     vector<Point> a;
     a.push_back(Point(3.5, 9.8));
@@ -201,7 +198,7 @@ int main() {
     myfile.open("output.csv");
     myfile << "x,y,c" << endl;
 
-    for (vector<Point>::iterator it = points.begin(); it != points.end(); ++it) {
+    for (vector<Point>::iterator it = puntos.begin(); it != puntos.end(); ++it) {
 
         myfile << it->x << "," << it->y << "," << it->cluster << endl;
     }
